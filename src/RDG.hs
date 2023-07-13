@@ -1,31 +1,52 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module RDG
   (
     RDG,
+    RDGNode(..),
+    PresenceCondition,
     rdgFromEdges,
     rdgFromVertices,
-    foldRDG,
-    emptyRDG
+    emptyRDG,
+    getRDGRoot,
+    foldG,
   ) where
 
-import Algebra.Graph (Graph, empty, edges, vertices, foldg)
+import Algebra.Graph 
 import Algebra.Graph.ToGraph (isAcyclic)
+import Data.Data
 
-type RDG a = Graph a
+deriving instance Data a => Data (Graph a)
+
+type PresenceCondition = Bool
+type RDG a = Graph (RDGNode a)
+
+data RDGNode a =
+  RDGNode
+  {
+    value :: a,
+    presenceCondition :: PresenceCondition
+  }
+  deriving (Typeable, Data, Eq, Ord)
 
 emptyRDG :: RDG a
 emptyRDG = empty
 
-validateRDG :: Ord a => RDG a -> RDG a
+validateRDG :: Ord a => Graph (RDGNode a) -> Graph (RDGNode a)
 validateRDG rdg =
-  if (isAcyclic rdg) then
+  if isAcyclic rdg then
     rdg
   else error "Could not create RDG due to cycle being found"
 
-rdgFromEdges :: Ord a => [(a,a)] -> RDG a
+rdgFromEdges :: Ord a => [(RDGNode a, RDGNode a)] -> Graph (RDGNode a)
 rdgFromEdges = validateRDG . edges
 
-rdgFromVertices :: Ord a => [a] -> RDG a
+rdgFromVertices :: Ord a => [RDGNode a] -> Graph (RDGNode a)
 rdgFromVertices = validateRDG . vertices
 
-foldRDG :: b -> (a -> b) -> (b -> b -> b) -> RDG a -> b
-foldRDG start leafs folding = foldg start leafs folding folding
+getRDGRoot :: Graph (RDGNode a) -> RDGNode a
+getRDGRoot = undefined
+
+foldG :: b -> (a -> b) -> (b -> b -> b) -> Graph a -> b
+foldG start leafs folding = foldg start leafs folding folding

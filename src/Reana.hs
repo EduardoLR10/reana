@@ -1,23 +1,20 @@
-module Reana
-  (
-    featureFamilyAnalysis
-  ) where
+{-# LANGUAGE RankNTypes #-}
+module Reana (featureFamilyAnalysis) where
 
-import NTree
 import UML
 import RDG
+import Data.Generics.Schemes
+import Data.Typeable
+import Data.Data
 
-type Model = NTree ActivityDiagram
+data UMLDiagram = UMLDiagramStub
+
 data FDTMC = FDTMCStub
 data Feature = FeatureStub
 data SystemConfiguration = SystemConfigStub
 
 data ADD a = ADDStub a
-instance Semigroup (ADD a) where
-  (<>) = undefined
-instance Monoid (ADD a) where
-  mappend = (<>)
-  mempty = undefined
+  deriving Data
 
 data Expr
   = Lit Double
@@ -26,36 +23,62 @@ data Expr
   | Sub Expr Expr
   | Mul Expr Expr
   | Div Expr Expr
-  deriving (Show, Eq)
+  deriving (Data, Show, Eq)
 
 type ReliabilityExpr = Expr
 type Reliability = Double
 
-modelToRDG :: Model -> RDG FDTMC
-modelToRDG = undefined
+--------------------------------------- FEATURE ANALYSIS
 
-checkModel :: FDTMC -> ReliabilityExpr
+readDiagram :: UMLDiagram -> RDG SequenceFragment
+readDiagram = undefined
+
+intermediateTransformation :: RDGNode SequenceFragment -> RDGNode FDTMC
+intermediateTransformation = undefined
+
+checkModel :: RDGNode FDTMC -> RDGNode ReliabilityExpr
 checkModel = undefined
 
-featureBasedAnalysis :: RDG FDTMC -> RDG ReliabilityExpr
-featureBasedAnalysis = fmap checkModel
+featureAnalysis :: RDG SequenceFragment -> RDG ReliabilityExpr
+featureAnalysis = fmap (checkModel . intermediateTransformation)
 
----------------------------------------
+--------------------------------------- FAMILY ANALYSIS
 
-lift :: ReliabilityExpr -> ADD (Maybe Reliability)
+lift :: RDGNode ReliabilityExpr -> RDGNode (ADD ReliabilityExpr)
 lift = undefined
 
-unvary :: SystemConfiguration -> ADD (Maybe Reliability) -> ADD Reliability
-unvary = undefined
+familyAnalysis :: RDG ReliabilityExpr -> RDG (ADD ReliabilityExpr)
+familyAnalysis = fmap lift
 
-familyBasedAnalysis :: SystemConfiguration -> RDG ReliabilityExpr -> RDG (ADD Reliability)
-familyBasedAnalysis sys = (fmap (unvary sys)) . (fmap lift)
+--------------------------------------- SYB
 
----------------------------------------
+combineADD :: ADD ReliabilityExpr -> ADD ReliabilityExpr -> ADD ReliabilityExpr
+combineADD = undefined
 
-computeReliability :: Feature -> (ADD Reliability) -> Reliability
-computeReliability = undefined
+mkPairADD :: Typeable a => a -> (ADD ReliabilityExpr, Bool)
+mkPairADD v = case cast v :: Maybe (RDGNode (ADD ReliabilityExpr)) of
+                Nothing -> error "This should never happen"
+                Just (RDGNode add pc) -> (add, pc)
 
-featureFamilyAnalysis :: SystemConfiguration -> Feature -> Model -> Reliability
-featureFamilyAnalysis sys feature = evaluate . (familyBasedAnalysis sys) . featureBasedAnalysis . modelToRDG
-  where evaluate = foldRDG 0 (computeReliability feature) (+)
+evalADD :: ADD ReliabilityExpr -> Reliability
+evalADD = undefined
+
+foldRDG :: RDG (ADD ReliabilityExpr) -> Reliability
+foldRDG rdg = evalADD $ everythingBut combineADD mkPairADD rdg
+
+--------------------------------------- ALTERNATIVE WAY
+
+evalADD' :: RDGNode (ADD ReliabilityExpr) -> Reliability
+evalADD' (RDGNode _ False) = 1.0
+evalADD' (RDGNode add True) = evalADD add
+
+foldRDG' :: RDG (ADD ReliabilityExpr) -> Reliability
+foldRDG' rdg = foldG (evalADD . value $ getRDGRoot rdg) evalADD' (*) rdg
+
+--------------------------------------- FEATURE-FAMILY ANALYSIS
+
+updatePresenceConditions :: SystemConfiguration -> RDG (ADD ReliabilityExpr) -> RDG (ADD ReliabilityExpr)
+updatePresenceConditions = undefined
+
+featureFamilyAnalysis :: SystemConfiguration -> UMLDiagram -> Reliability
+featureFamilyAnalysis system = foldRDG . (updatePresenceConditions system) . familyAnalysis . featureAnalysis . readDiagram

@@ -1,18 +1,25 @@
 module UML
   (
-    ActivityDiagram(..)
+    SequenceFragment
   ) where
 
-data NodeType
-  = Decision
-  | Statement
-  | Termination
-  deriving (Show, Eq, Ord)
+import Data.Graph.DGraph
 
-data ActivityDiagram
+type SequenceFragment = DGraph SequenceNode SequenceEdge
+
+data SequenceNode
   =
-    ActivityDiagram { type'       :: NodeType,
-                      name        :: String,
-                      description :: String
-            }
-    deriving (Show, Eq, Ord)
+    SequenceNode
+    { stage :: String,
+      idN :: Int
+    }
+    deriving (Show, Eq)
+
+data SequenceEdge
+  =
+    SequenceEdge
+    { idE :: Int,
+      name :: String,
+      probability :: Double
+    }
+    deriving (Show, Eq)

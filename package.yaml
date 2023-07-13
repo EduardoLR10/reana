@@ -22,6 +22,9 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - algebraic-graphs
+- graphite
+- syb
+- hashable
 
 ghc-options:
 - -Wall
@@ -33,6 +36,8 @@ ghc-options:
 - -Wmissing-home-modules
 - -Wpartial-fields
 - -Wredundant-constraints
+- -XDeriveDataTypeable
+- -Wno-orphans
 
 library:
   source-dirs: src
