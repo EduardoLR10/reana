@@ -1,84 +1,76 @@
 {-# LANGUAGE RankNTypes #-}
-module Reana (featureFamilyAnalysis) where
+module Reana
+  (featureFamilyAnalysis,
+   UMLDiagram(..),
+   parseDiagram,
+   familyAnalysis,
+   featureAnalysis
+  ) where
 
+import ADD
 import UML
 import RDG
+import Util
 import Data.Generics.Schemes
 import Data.Typeable
-import Data.Data
 
 data UMLDiagram = UMLDiagramStub
-
-data FDTMC = FDTMCStub
-data Feature = FeatureStub
-data SystemConfiguration = SystemConfigStub
-
-data ADD a = ADDStub a
-  deriving Data
-
-data Expr
-  = Lit Double
-  | Label String
-  | Add Expr Expr
-  | Sub Expr Expr
-  | Mul Expr Expr
-  | Div Expr Expr
-  deriving (Data, Show, Eq)
-
-type ReliabilityExpr = Expr
-type Reliability = Double
+type FDTMC = Double
 
 --------------------------------------- FEATURE ANALYSIS
 
-readDiagram :: UMLDiagram -> RDG SequenceFragment
-readDiagram = undefined
+parseDiagram :: UMLDiagram -> RDG SequenceFragment
+parseDiagram _ = rdgFromVertices $ fmap nodeFromValue [s1, s2, s3]
+  where s1 = emptySequenceFragment
+        s2 = emptySequenceFragment
+        s3 = emptySequenceFragment
 
-intermediateTransformation :: RDGNode SequenceFragment -> RDGNode FDTMC
-intermediateTransformation = undefined
+intermediateTransformation :: SequenceFragment -> FDTMC
+intermediateTransformation = const randomNumber
 
-checkModel :: RDGNode FDTMC -> RDGNode ReliabilityExpr
-checkModel = undefined
+modelCheck :: FDTMC -> ReliabilityExpr
+modelCheck fdtmc = if even (round fdtmc :: Integer) then evenExpr else oddExpr
 
 featureAnalysis :: RDG SequenceFragment -> RDG ReliabilityExpr
-featureAnalysis = fmap (checkModel . intermediateTransformation)
+featureAnalysis = fmap (fmap (modelCheck . intermediateTransformation))
 
 --------------------------------------- FAMILY ANALYSIS
 
 lift :: RDGNode ReliabilityExpr -> RDGNode (ADD ReliabilityExpr)
-lift = undefined
+lift = fmap pure
 
 familyAnalysis :: RDG ReliabilityExpr -> RDG (ADD ReliabilityExpr)
 familyAnalysis = fmap lift
 
---------------------------------------- SYB
+--------------------------------------- FEATURE-FAMILY ANALYSIS
 
-combineADD :: ADD ReliabilityExpr -> ADD ReliabilityExpr -> ADD ReliabilityExpr
-combineADD = undefined
+partialEvalExpr :: ADD ReliabilityExpr -> ADD ReliabilityExpr -> ADD ReliabilityExpr
+partialEvalExpr (ADD (ctx1, add1)) (ADD (ctx2, add2)) = pure $ partialEval (mergeContexts ctx1 ctx2) add1 add2
+  
+getExpr :: Typeable a => a -> (ADD ReliabilityExpr, Bool)
+getExpr v = case cast v :: Maybe (RDGNode (ADD ReliabilityExpr)) of
+              Nothing -> error "This should never happen"
+              Just (RDGNode add pc) -> (add, not pc)
 
-mkPairADD :: Typeable a => a -> (ADD ReliabilityExpr, Bool)
-mkPairADD v = case cast v :: Maybe (RDGNode (ADD ReliabilityExpr)) of
-                Nothing -> error "This should never happen"
-                Just (RDGNode add pc) -> (add, pc)
-
-evalADD :: ADD ReliabilityExpr -> Reliability
-evalADD = undefined
-
-foldRDG :: RDG (ADD ReliabilityExpr) -> Reliability
-foldRDG rdg = evalADD $ everythingBut combineADD mkPairADD rdg
+featureFamilyAnalysis :: UMLDiagram -> ADD ReliabilityExpr
+featureFamilyAnalysis = (everythingBut partialEvalExpr getExpr) . familyAnalysis . featureAnalysis . parseDiagram
 
 --------------------------------------- ALTERNATIVE WAY
 
-evalADD' :: RDGNode (ADD ReliabilityExpr) -> Reliability
-evalADD' (RDGNode _ False) = 1.0
-evalADD' (RDGNode add True) = evalADD add
+-- evalADD' :: RDGNode (ADD ReliabilityExpr) -> Reliability
+-- evalADD' (RDGNode _ False) = 1.0
+-- evalADD' (RDGNode add True) = evalADD add
 
-foldRDG' :: RDG (ADD ReliabilityExpr) -> Reliability
-foldRDG' rdg = foldG (evalADD . value $ getRDGRoot rdg) evalADD' (*) rdg
+-- foldRDG' :: RDG (ADD ReliabilityExpr) -> Reliability
+-- foldRDG' rdg = foldG (evalADD . value $ getRDGRoot rdg) evalADD' (*) rdg
 
---------------------------------------- FEATURE-FAMILY ANALYSIS
+--------------------------------------- ALTERNATIVE WAY
 
-updatePresenceConditions :: SystemConfiguration -> RDG (ADD ReliabilityExpr) -> RDG (ADD ReliabilityExpr)
-updatePresenceConditions = undefined
+-- featureFamilyAnalysis' :: a -> (ADD ReliabilityExpr, Bool)
+-- featureFamilyAnalysis' v = case cast v :: Maybe (RDGNode SequenceFragment) of
+--                              Nothing -> error "This should never happen"
+--                              Just rdgNode -> let (RDGNode add pc) = lift . modelCheck $ intermediateTransformation rdgNode
+--                                              in (add, not pc)
 
-featureFamilyAnalysis :: SystemConfiguration -> UMLDiagram -> Reliability
-featureFamilyAnalysis system = foldRDG . (updatePresenceConditions system) . familyAnalysis . featureAnalysis . readDiagram
+-- reana :: UMLDiagram -> ADD ReliabilityExpr
+-- reana = (everythingBut partialEvalExpr featureFamilyAnalysis') . parseDiagram

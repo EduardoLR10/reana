@@ -25,9 +25,11 @@ source-repository head
 
 library
   exposed-modules:
+      ADD
       RDG
       Reana
       UML
+      Util
   other-modules:
       Paths_reana
   hs-source-dirs:
@@ -36,8 +38,10 @@ library
   build-depends:
       algebraic-graphs
     , base >=4.7 && <5
+    , containers
     , graphite
     , hashable
+    , random
     , syb
   default-language: Haskell2010
 
@@ -51,8 +55,10 @@ executable reana-exe
   build-depends:
       algebraic-graphs
     , base >=4.7 && <5
+    , containers
     , graphite
     , hashable
+    , random
     , reana
     , syb
   default-language: Haskell2010
@@ -68,8 +74,10 @@ test-suite reana-test
   build-depends:
       algebraic-graphs
     , base >=4.7 && <5
+    , containers
     , graphite
     , hashable
+    , random
     , reana
     , syb
   default-language: Haskell2010
