@@ -4,12 +4,11 @@
 module ADD
   (
     ADD(..),
-    partialEval,
-    mergeContexts,
     evenExpr,
     oddExpr,
     one,
     eval,
+    partialEval,
     ReliabilityExpr,
   ) where
 

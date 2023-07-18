@@ -1,13 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
-module Reana 
-  (featureFamilyAnalysis,
-   UMLDiagram(..),
-   parseDiagram,
-   partialEvalExpr,
-   getExpr,
-   familyAnalysis,
-   featureAnalysis
-  ) where
+module Reana (reana) where
 
 import ADD
 import UML
@@ -58,6 +50,9 @@ getExpr v = case cast v :: Maybe (RDG (ADD ReliabilityExpr)) of
 
 featureFamilyAnalysis :: UMLDiagram -> ADD ReliabilityExpr
 featureFamilyAnalysis = (everythingBut partialEvalExpr getExpr) . familyAnalysis . featureAnalysis . parseDiagram
+
+reana :: ADD ReliabilityExpr
+reana = featureFamilyAnalysis UMLDiagramStub
 
 --------------------------------------- ALTERNATIVE WAY
 
