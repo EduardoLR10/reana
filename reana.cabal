@@ -29,7 +29,6 @@ library
       RDG
       Reana
       UML
-      Util
   other-modules:
       Paths_reana
   hs-source-dirs:

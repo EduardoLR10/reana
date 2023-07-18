@@ -8,6 +8,8 @@ module ADD
     mergeContexts,
     evenExpr,
     oddExpr,
+    one,
+    eval,
     ReliabilityExpr,
   ) where
 
@@ -25,42 +27,6 @@ instance Applicative ADD where
 instance Monad ADD where
   return = pure
   (ADD a) >>= f = f a
-
-binaryOP :: (a -> b -> c) -> ADD a -> ADD b -> ADD c
-binaryOP func da db = fmap func da <*> db
-
-instance (Num a) => Num (ADD a) where
-  x + y = binaryOP (+) x y
-  x - y = binaryOP (-) x y
-  x * y = binaryOP (*) x y
-  negate = fmap negate
-  abs = fmap abs
-  signum = fmap signum
-  fromInteger i = return $ fromInteger i
-
-instance (Fractional a) => Fractional (ADD a) where
-  x / y = binaryOP (/) x y
-  recip = fmap recip
-  fromRational t = return $ fromRational t
-
-instance (Floating a) => Floating (ADD a) where
-  pi = return pi
-  exp = fmap exp
-  log = fmap log
-  sqrt = fmap sqrt
-  x ** y = binaryOP (**) x y
-  sin = fmap sin
-  cos = fmap cos
-  tan = fmap tan
-  asin = fmap asin
-  acos = fmap acos
-  atan = fmap atan
-  sinh = fmap sinh
-  cosh = fmap cosh
-  tanh = fmap tanh
-  asinh = fmap asinh
-  acosh = fmap acosh
-  atanh = fmap atanh
 
 data Expr
   = Lit Double
@@ -81,12 +47,15 @@ mergeContexts :: Context -> Context -> Context
 mergeContexts = Map.union
 
 evenExpr :: ReliabilityExpr
-evenExpr = (ctx, (Add (Mul (Label "y") (Lit 5.0)) (Label "z")))
+evenExpr = (ctx, (Add (Mul (Label "y") (Lit 5.0)) (Label "y")))
   where ctx = (insert "y" 2.0 emptyContext)
 
 oddExpr :: ReliabilityExpr
-oddExpr = (ctx, (Add (Add (Label "x") (Lit 3.0)) (Label "y")))
-  where ctx = (insert "y" 5.0 emptyContext)
+oddExpr = (ctx, (Add (Add (Label "z") (Lit 3.0)) (Label "z")))
+  where ctx = (insert "z" 5.0 emptyContext)
+
+one :: ReliabilityExpr
+one = (emptyContext, Lit 1.0)
 
 binaryOpExpr :: (Double -> Double -> Double) -> Context -> Expr -> Expr -> (Context, Expr)
 binaryOpExpr op ctx expr1 expr2 = case eval ctx expr1 of
@@ -103,5 +72,8 @@ eval ctx (Sub expr1 expr2) = binaryOpExpr (-) ctx expr1 expr2
 eval ctx (Mul expr1 expr2) = binaryOpExpr (*) ctx expr1 expr2
 eval ctx (Div expr1 expr2) = binaryOpExpr (/) ctx expr1 expr2
 
-partialEval :: Context -> Expr -> Expr -> (Context, Expr)
-partialEval ctx _ expr = eval ctx expr
+partialEval' :: Context -> Expr -> Expr -> (Context, Expr)
+partialEval' ctx _ expr = eval ctx expr
+
+partialEval :: ADD ReliabilityExpr -> ADD ReliabilityExpr -> ADD ReliabilityExpr
+partialEval (ADD (ctx1, expr1)) (ADD (ctx2, expr2)) = pure $ partialEval' (mergeContexts ctx1 ctx2) expr1 expr2 

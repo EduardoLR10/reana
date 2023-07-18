@@ -1,8 +1,10 @@
 {-# LANGUAGE RankNTypes #-}
-module Reana
+module Reana 
   (featureFamilyAnalysis,
    UMLDiagram(..),
    parseDiagram,
+   partialEvalExpr,
+   getExpr,
    familyAnalysis,
    featureAnalysis
   ) where
@@ -10,9 +12,10 @@ module Reana
 import ADD
 import UML
 import RDG
-import Util
 import Data.Generics.Schemes
 import Data.Typeable
+import System.Random
+import System.IO.Unsafe
 
 data UMLDiagram = UMLDiagramStub
 type FDTMC = Double
@@ -26,18 +29,18 @@ parseDiagram _ = rdgFromVertices $ fmap nodeFromValue [s1, s2, s3]
         s3 = emptySequenceFragment
 
 intermediateTransformation :: SequenceFragment -> FDTMC
-intermediateTransformation = const randomNumber
+intermediateTransformation = const (unsafePerformIO randomIO)
 
 modelCheck :: FDTMC -> ReliabilityExpr
 modelCheck fdtmc = if even (round fdtmc :: Integer) then evenExpr else oddExpr
 
 featureAnalysis :: RDG SequenceFragment -> RDG ReliabilityExpr
-featureAnalysis = fmap (fmap (modelCheck . intermediateTransformation))
+featureAnalysis = fmap (modelCheck . intermediateTransformation)
 
 --------------------------------------- FAMILY ANALYSIS
 
-lift :: RDGNode ReliabilityExpr -> RDGNode (ADD ReliabilityExpr)
-lift = fmap pure
+lift :: ReliabilityExpr -> ADD ReliabilityExpr
+lift = pure
 
 familyAnalysis :: RDG ReliabilityExpr -> RDG (ADD ReliabilityExpr)
 familyAnalysis = fmap lift
@@ -45,12 +48,13 @@ familyAnalysis = fmap lift
 --------------------------------------- FEATURE-FAMILY ANALYSIS
 
 partialEvalExpr :: ADD ReliabilityExpr -> ADD ReliabilityExpr -> ADD ReliabilityExpr
-partialEvalExpr (ADD (ctx1, add1)) (ADD (ctx2, add2)) = pure $ partialEval (mergeContexts ctx1 ctx2) add1 add2
+partialEvalExpr (ADD (ctx, expr)) _ = pure $ eval ctx expr
   
 getExpr :: Typeable a => a -> (ADD ReliabilityExpr, Bool)
-getExpr v = case cast v :: Maybe (RDGNode (ADD ReliabilityExpr)) of
+getExpr v = case cast v :: Maybe (RDG (ADD ReliabilityExpr)) of
               Nothing -> error "This should never happen"
-              Just (RDGNode add pc) -> (add, not pc)
+              Just Nil -> (pure one, False)
+              Just (Cons (RDGNode add pc) _) -> (add, not pc)
 
 featureFamilyAnalysis :: UMLDiagram -> ADD ReliabilityExpr
 featureFamilyAnalysis = (everythingBut partialEvalExpr getExpr) . familyAnalysis . featureAnalysis . parseDiagram

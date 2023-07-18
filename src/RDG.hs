@@ -1,9 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 module RDG
   (
-    RDG,
+    RDG(..),
     RDGNode(..),
     PresenceCondition,
     rdgFromVertices,
@@ -12,16 +13,15 @@ module RDG
     getRDGRoot
   ) where
 
--- import Algebra.Graph 
--- import Algebra.Graph.ToGraph (isAcyclic)
 import Data.Data
 
--- deriving instance Data a => Data (Graph a)
 
 type PresenceCondition = Bool
---type RDG a = Graph (RDGNode a)
-type RDG a = [RDGNode a]
-
+data RDG a
+  = Nil
+  | Cons (RDGNode a) (RDG a)
+  deriving (Typeable, Data, Eq, Ord, Show, Functor)
+ 
 data RDGNode a =
   RDGNode
   {
@@ -34,19 +34,20 @@ instance Functor RDGNode where
   fmap f (RDGNode v p) = (RDGNode (f v) p)
 
 emptyRDG :: RDG a
-emptyRDG = []
+emptyRDG = Nil
 
-isAcyclic :: Ord a => RDG a -> Bool
+isAcyclic :: RDG a -> Bool
 isAcyclic = const True
 
-validateRDG :: Ord a => RDG a -> RDG a
+validateRDG :: RDG a -> RDG a
 validateRDG rdg =
   if isAcyclic rdg then
     rdg
   else error "Could not create RDG due to cycle being found"
 
 rdgFromVertices :: Ord a => [RDGNode a] -> RDG a
-rdgFromVertices = validateRDG
+rdgFromVertices [] = Nil
+rdgFromVertices (x:xs) = validateRDG $ Cons x (rdgFromVertices xs)
 
 nodeFromValue :: a -> RDGNode a
 nodeFromValue = (\v -> (RDGNode v True))
